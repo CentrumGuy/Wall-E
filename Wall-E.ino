@@ -52,6 +52,7 @@ CalibrationTask calibrationTasks[] = {
 #define IR_TARGET_CLOSE 152
 #define TRACK_LED 1
 #define CALIBRATION_LED 2
+#define LASER_PIN 1
 // END CONSTANTS
 
 
@@ -87,11 +88,13 @@ void loop() {
     isInitialTaskRun = true;
     robot.LED(TRACK_LED, 0);
     robot.LED(CALIBRATION_LED, 0);
+    robot.digital(LASER_PIN, 1);
     return;
   }
 
   driveHandler.update();
   dropperHandler.update();
+  robot.digital(LASER_PIN, 0);
   switch (mode) {
     case IDLE: {
       mode = robot.readButton(CALIBRATION_BUTTON) ? CALIBRATION : TRACK;
