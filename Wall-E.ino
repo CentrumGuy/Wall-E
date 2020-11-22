@@ -19,8 +19,12 @@
 
 #define DROPPER_MONEYBALL_EXTENSION 7
 #define DROPPER_CUPS_EXTENSION 3
-#define DROPPER_DROP_EXTENSION 2.9
-#define MONEYBALL_TO_CUPS_DISTANCE 21.5
+#define DROPPER_DROP_EXTENSION 3.2
+#define MONEYBALL_TO_CUPS_DISTANCE 22.85
+
+#define CANNON_1_BURST_DURATION 0.095
+#define CANNON_1_2_DELAY 0.2
+#define CANNON_2_BURST_DURATION 0.15
 
 #define CALIBRATION_SPEED 0.5
 #define DROPPER_CALIBRATION_DISTANCE 12.85
@@ -29,7 +33,10 @@
 Task tasks[] = {
   TASK_ZERO_DROPPER,
   TASK_START,
-  TASK_FIRE_CANNON,
+  TASK_FIRE_CANNON_1,
+  TASK_DELAY_CANNONS,
+  TASK_FIRE_CANNON_2,
+  TASK_DELAY_MOVE,
   TASK_MOVE_TO_MONEYBALL,
   TASK_CAPTURE_MONEYBALL,
   TASK_DRIVE_TO_CUPS,
@@ -54,6 +61,8 @@ CalibrationTask calibrationTasks[] = {
 #define TRACK_LED 1
 #define CALIBRATION_LED 2
 #define LASER_PIN 1
+#define CANNON_1 2
+#define CANNON_2 3
 // END CONSTANTS
 
 
@@ -118,10 +127,19 @@ void runTask() {
       shouldContinue = zeroDropper();
       break;
     } case TASK_START: {
-      shouldContinue = start();
+      shouldContinue = delayTask(START_DELAY);
       break;
-    } case TASK_FIRE_CANNON: {
-      shouldContinue = fireCannons();
+    } case TASK_FIRE_CANNON_1: {
+      shouldContinue = fireCannon1();
+      break;
+    } case TASK_DELAY_CANNONS: {
+      shouldContinue = delayTask(CANNON_1_2_DELAY);
+      break;
+    } case TASK_FIRE_CANNON_2: {
+      shouldContinue = fireCannon2();
+      break;
+    } case TASK_DELAY_MOVE: {
+      shouldContinue = delayTask(CANNON_DELAY);
       break;
     } case TASK_MOVE_TO_MONEYBALL: {
       shouldContinue = moveToMoneyball();
@@ -198,25 +216,49 @@ bool zeroDropper() {
   return false;
 }
 
-/*
- * START
- * Prepare the robot. This task will delay the robot by the set START_DELAY
+/**
+ * DELAY TASK
+ * A task used to delay the next task. This task will terminate once the delay time is reached
  */
-bool start() {
-  if (isInitialTaskRun) deadline = millis() + START_DELAY * 1000;
+bool delayTask(double duration) {
+  if (isInitialTaskRun) deadline = millis() + (duration * 1000);
   return millis() >= deadline;
 }
 
 /*
- * FIRE CANNONS
- * Fires the cannons. This task will fire the cannons and then delay the robot by the set CANNON_DELAY
+ * FIRE CANNON 1
+ * Fires the 1st cannon. This task will fire the 1st cannon using the burst CANNON_1_BURST_DURATION
  */
-bool fireCannons() {
+bool fireCannon1() {
   if (isInitialTaskRun) {
-    deadline = millis() + CANNON_DELAY * 1000;
-    // TODO: Fire Cannons
+    robot.digital(CANNON_1, 1);
+    deadline = millis() + CANNON_1_BURST_DURATION * 1000;
   }
-  return millis() >= deadline;
+
+  if (millis() >= deadline) {
+    robot.digital(CANNON_1,0);
+    return true;
+  }
+  
+  return false;
+}
+
+/*
+ * FIRE CANNON 2
+ * Fires the 2nd cannon. This task will fire the 2nd cannon using the burst CANNON_2_BURST_DURATION
+ */
+bool fireCannon2() {
+  if (isInitialTaskRun) {
+    robot.digital(CANNON_2, 1);
+    deadline = millis() + CANNON_2_BURST_DURATION * 1000;
+  }
+
+  if (millis() >= deadline) {
+    robot.digital(CANNON_2,0);
+    return true;
+  }
+  
+  return false;
 }
 
 /*
@@ -246,7 +288,7 @@ bool moveToMoneyball() {
  */
 bool captureMoneyball() {
   if (isInitialTaskRun) {
-    dropperHandler.distanceMove(0.5, FORWARD, DROPPER_MONEYBALL_EXTENSION, false);
+    dropperHandler.distanceMove(1, FORWARD, DROPPER_MONEYBALL_EXTENSION, false);
   }
   return !dropperHandler.isMoving();
 }
@@ -273,7 +315,7 @@ bool driveToCups() {
  */
 bool dropBalls() {
   if (isInitialTaskRun) {
-    dropperHandler.distanceMove(0.3, FORWARD, DROPPER_DROP_EXTENSION, false);
+    dropperHandler.distanceMove(1, FORWARD, DROPPER_DROP_EXTENSION, false);
     deadline = millis() + DROP_DELAY * 1000;
   }
 
